@@ -14,27 +14,6 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives import serialization
 
 
-# asyncio channels based on: https://github.com/BlockstreamResearch/bip-frost-dkg/blob/master/python/example.py
-# class CoordinatorChannels:
-#     def __init__(self, n):
-#         self.n = n
-#         self.queues = []
-#         for i in range(n):
-#             self.queues += [asyncio.Queue()]
-
-#     def set_participant_queues(self, participant_queues):
-#         self.participant_queues = participant_queues
-
-#     def send_all(self, m):
-#         assert self.participant_queues is not None
-#         for i in range(self.n):
-#             self.participant_queues[i].put_nowait(m)
-
-#     async def receive_from(self, i):
-#         item = await self.queues[i].get()
-#         return item
-
-
 class Channel:
     def __init__(self, card_id: int):
         self.card_id = card_id
@@ -49,47 +28,6 @@ class Channel:
         # receive from the coordinator to the card
         item = await self.recv_queue.get()
         return item
-
-
-# class Card:
-#     def __init__(self, _id: int, group_params: dict, channel: Channel):
-#         self.id = _id
-#         self.group_params = group_params
-#         self.channel = channel
-
-#     def generate_private(self):
-#         self.secret = secrets.token_bytes(32)
-
-#     def get_sha_secret(self):
-#         sha256 = hashlib.sha256()
-#         sha256.update(self.secret)
-#         return sha256.digest()
-
-#     def receive(self):
-#         self.channel.receive
-
-#     def send(self, item):
-#         self.channel.put_nowait(item)
-
-
-# # class User:
-# #     pass
-
-
-# # TODO make each participant echo a random message
-# class Coordinator:
-#     def __init__(self, participants):
-#         self.participants = {}
-#         for pc in self.participants:
-#             self.participants[pc.id] =
-
-#         # self.channels = {}
-
-#     def send_all(self):
-#         pass
-
-#     def send(self, i):
-#         pass
 
 
 async def coordinator(channels: List[Channel], n: int, user: Channel):
@@ -261,12 +199,9 @@ def main():
         "threshold": threshold,
     }
 
-    # init
-    # cards = []
     channels = []
     for i, _ in enumerate(range(group_size)):
         channels.append(Channel(card_id=i))
-        # cards.append(Card(_id=i, group_params=group_params))
 
     # FIXME update channel not to require card_id
     user_channel = Channel(card_id=None)
@@ -282,9 +217,6 @@ def main():
     outputs = asyncio.run(session())
 
     return outputs
-
-
-# coordinator = Coordinator(participants=cards)
 
 
 if __name__ == "__main__":
