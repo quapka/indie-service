@@ -26,7 +26,14 @@
       {
         packages = rec { };
         devShells.default = mkShell {
-          buildInputs = [ python312 ] ++ (with pkgs.python312Packages; [ cryptography ]);
+          buildInputs =
+            [ python312 ]
+            ++ (with pkgs.python312Packages; [
+              cryptography
+              flake8
+              mypy
+              black
+            ]);
         };
       }
     );
