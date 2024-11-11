@@ -2,20 +2,17 @@
 
 import argparse
 import asyncio
-import hashlib
-import time
 import random
 import secrets
 
-from typing import List
+from typing import List, Optional
 
-import cryptography
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives import serialization
 
 
 class Channel:
-    def __init__(self, card_id: int):
+    def __init__(self, card_id: Optional[int]):
         self.card_id = card_id
         self.recv_queue = asyncio.Queue()
         self.send_queue = asyncio.Queue()
@@ -38,7 +35,6 @@ async def coordinator(channels: List[Channel], n: int, user: Channel):
         match await recv_ch.send_queue.get():
             case {"signer": _id, "pubkey": public_key, "cert": signature}:
                 public_key = public_key
-                cert = signature
         if ind != _id:
             raise ValueError(f"Expected {ind} ID, but got {_id}")
         # Verify self-signed certificates
@@ -101,7 +97,7 @@ async def card(_id: int, channel: Channel, n: int):
 
     # Commit to our public ke
     channel.send({"signer": _id, "pubkey": public_key, "cert": commit_to_pub})
-    print(f"{_id} committed to {pubkey_bytes}")
+    print(f"{_id} committed to {pubkey_bytes!r}")
 
     # Save public keys of other signers
     for _ in range(n):
@@ -159,7 +155,7 @@ async def user(channel: Channel, n: int):
                 cards[signer] = public_key
                 print("Pubkey received")
 
-    salt_shares = []
+    salt_shares: List[bytes] = []
     for _ in range(n):
         match await channel.receive():
             case {"signer": signer, "share": share}:
@@ -194,10 +190,10 @@ def main():
             f"Unexpected threshold or group size ({threshold}-of-{group_size})."
         )
 
-    group_params = {
-        "group_size": group_size,
-        "threshold": threshold,
-    }
+    # _group_params = {
+    #     "group_size": group_size,
+    #     "threshold": threshold,
+    # }
 
     channels = []
     for i, _ in enumerate(range(group_size)):
