@@ -57,23 +57,24 @@ async def coordinator(channels: List[Channel], n: int, user: Channel):
             {"signer": ind, "pubkey": public_key, "signature": signature}
         )
 
-    # Setup done, wait for the user to send its token, this would be looping in real app
-    token = await user.send_queue.get()
+    while True:
+        # Setup done, wait for the user to send its token, this would be looping in real app
+        token = await user.send_queue.get()
 
-    # Distribute the token to the cards
-    for ch in channels:
-        ch.recv_queue.put_nowait(token)
+        # Distribute the token to the cards
+        for ch in channels:
+            ch.recv_queue.put_nowait(token)
 
-    # Collect cards' salt "shares"
-    for ch in channels:
-        salt_share = await ch.send_queue.get()
+        # Collect cards' salt "shares"
+        for ch in channels:
+            salt_share = await ch.send_queue.get()
 
-        # FIXME the token will be encrypted in the final version, thus the following
-        #       check won't be possible by the coordinator
-        # signers[salt_share["signer"]].verify(salt_share["share"], token)
+            # FIXME the token will be encrypted in the final version, thus the following
+            #       check won't be possible by the coordinator
+            # signers[salt_share["signer"]].verify(salt_share["share"], token)
 
-        print("Coordinator received valid share")
-        user.recv_queue.put_nowait(salt_share)
+            print(f"Coordinator received valid share: {salt_share!r}")
+            user.recv_queue.put_nowait(salt_share)
 
 
 async def card(_id: int, channel: Channel, n: int):
@@ -121,60 +122,82 @@ async def card(_id: int, channel: Channel, n: int):
                     if public_key != other_public_key:
                         raise ValueError("Incorrect self key returned")
 
-    # salt request
-    token = await channel.receive()
-    # The signature itself is the share
-    share = private_key.sign(token)
-    channel.send({"signer": _id, "share": share})
+    while True:
+        # salt request
+        token = await channel.receive()
+        # The signature itself is the share
+        share = private_key.sign(token)
+        channel.send({"signer": _id, "share": share})
 
 
+# FIXME turn into service to see that salt derivation is deterministic
 async def user(channel: Channel, n: int):
     # Simulates JWT
     token = secrets.token_bytes(32)
 
-    # Request salt
-    channel.send(token)
-    print("Token sent")
+    async def get_cards_public():
+        # Receive the cards public keys, this should happen out-of-band from the card issuers
+        # Actually, but can be cross-checked with the data from the operator
+        cards = {}
+        for _ in range(n):
+            match await channel.receive():
+                case {"signer": signer, "pubkey": public_key, "signature": signature}:
+                    signature = signature
+                    # Verify salt share's signature and...
+                    public_key.verify(
+                        signature,
+                        public_key.public_bytes(
+                            encoding=serialization.Encoding.Raw,
+                            format=serialization.PublicFormat.Raw,
+                        ),
+                    )
+                    # ...if it's OK, save it
+                    cards[signer] = public_key
+                    print("Pubkey received")
+        return cards
 
-    # Receive the cards public keys, this should happen out-of-band from the card issuers
-    # Actually, but can be cross-checked with the data from the operator
-    cards = {}
-    for _ in range(n):
-        match await channel.receive():
-            case {"signer": signer, "pubkey": public_key, "signature": signature}:
-                signature = signature
-                # Verify salt share's signature and...
-                public_key.verify(
-                    signature,
-                    public_key.public_bytes(
-                        encoding=serialization.Encoding.Raw,
-                        format=serialization.PublicFormat.Raw,
-                    ),
-                )
-                # ...if it's OK, save it
-                cards[signer] = public_key
-                print("Pubkey received")
+    # Flag to mark when the fist salt was generated
+    async def get_salt(cards):
+        # Request salt
+        channel.send(token)
+        print("Token sent")
 
-    salt_shares: List[bytes] = []
-    for _ in range(n):
-        match await channel.receive():
-            case {"signer": signer, "share": share}:
-                signature = share
-                print(f"signer: {signer}")
-                # Verify salt share's signature
-                cards[signer].verify(share, token)
-                # for sid, pubkey in cards.items():
-                #     try:
-                #         pubkey.verify(
-                #             signature,
-                #             token,
-                #         )
-                #         salt_shares.append(share)
-                #         print("Salt share received")
-                #     except cryptography.exceptions.InvalidSignature as e:
-                #         print(f"invalid for: {sid}")
+        salt_shares: List[bytes] = []
+        for _ in range(n):
+            match await channel.receive():
+                case {"signer": signer, "share": share}:
+                    signature = share
+                    print(f"signer: {signer}")
+                    # Verify salt share's signature
+                    cards[signer].verify(share, token)
+                    salt_shares.append(share)
 
-    return salt_shares
+        salt = derive_salt_from_shares(salt_shares)
+
+        return salt
+
+    cards = await get_cards_public()
+
+    while True:
+        salt = await get_salt(cards=cards)
+
+    return salt
+
+
+def derive_salt_from_shares(shares: List[bytes]) -> bytes:
+    # FIXME: Xor for now
+    lens = set(len(sh) for sh in shares)
+    if len(lens) != 1:
+        raise ValueError("The shares aren't of the same length")
+
+    salt = []
+    for ind in range(len(shares[0])):
+        tmp = 0
+        for share in shares:
+            tmp ^= share[ind]
+        salt.append(tmp)
+
+    return bytes(salt)
 
 
 def main():
@@ -211,6 +234,8 @@ def main():
         return await asyncio.gather(*coroutines)
 
     outputs = asyncio.run(session())
+    # The user is the second coroutine
+    print(outputs[1])
 
     return outputs
 
