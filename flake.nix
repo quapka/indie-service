@@ -29,11 +29,22 @@
           buildInputs =
             [ python312 ]
             ++ (with pkgs.python312Packages; [
-              cryptography
               flake8
               mypy
               black
+              venvShellHook
+
+              # customPkgs.python312Packages.libecc
+              cryptography
             ]);
+
+          venvDir = ".virt";
+
+          postShellHook = ''
+            pip install --upgrade pip
+            pip install libecc
+            pip install cffi
+          '';
         };
       }
     );

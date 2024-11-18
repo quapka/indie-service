@@ -1,0 +1,4 @@
+dependencies:
+cryptography
+jwt
+libecc

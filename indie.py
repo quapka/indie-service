@@ -2,13 +2,32 @@
 
 import argparse
 import asyncio
+
 import random
 import secrets
 
 from typing import List, Optional
+from enum import Enum, auto
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+
+import jwt
+import libecc
+
+
+class CardState(Enum):
+    # Fresh card without, entrypoint to the system
+    NEW = auto()
+    # The card has now private and public key
+    IDENTIFIABLE = auto()
+    # The card now has done DKG with the rest of the cards
+    AFTER_CEREMONY = auto()
+
+
+# NEW -> IDENTIFIABLE -> AFTER_CEREMONY
+#
 
 
 class Channel:
@@ -25,6 +44,13 @@ class Channel:
         # receive from the coordinator to the card
         item = await self.recv_queue.get()
         return item
+
+
+# async def google(user: Channel):
+#     private_key = rsa.generate_private_key(
+#         public_exponent=65537,
+#         key_size=2048,
+#     )
 
 
 async def coordinator(channels: List[Channel], n: int, user: Channel):
@@ -57,7 +83,7 @@ async def coordinator(channels: List[Channel], n: int, user: Channel):
             {"signer": ind, "pubkey": public_key, "signature": signature}
         )
 
-    while True:
+    for _ in range(3):
         # Setup done, wait for the user to send its token, this would be looping in real app
         token = await user.send_queue.get()
 
@@ -94,7 +120,7 @@ async def card(_id: int, channel: Channel, n: int):
     commit_to_pub = private_key.sign(pubkey_bytes)
 
     # imitate random waits
-    await asyncio.sleep(random.uniform(0.05, 1.0))
+    await asyncio.sleep(random.uniform(0.05, 0.1))
 
     # Commit to our public ke
     channel.send({"signer": _id, "pubkey": public_key, "cert": commit_to_pub})
@@ -103,7 +129,7 @@ async def card(_id: int, channel: Channel, n: int):
     # Save public keys of other signers
     for _ in range(n):
         # imitate random waits
-        await asyncio.sleep(random.uniform(0.05, 1.0))
+        await asyncio.sleep(random.uniform(0.05, 0.1))
         match await channel.receive():
             case {"ind": ind, "pubkey": other_public_key, "signature": signature}:
                 # Verify that the keys are self-signed
@@ -122,7 +148,7 @@ async def card(_id: int, channel: Channel, n: int):
                     if public_key != other_public_key:
                         raise ValueError("Incorrect self key returned")
 
-    while True:
+    for _ in range(3):
         # salt request
         token = await channel.receive()
         # The signature itself is the share
@@ -178,7 +204,7 @@ async def user(channel: Channel, n: int):
 
     cards = await get_cards_public()
 
-    while True:
+    for _ in range(3):
         salt = await get_salt(cards=cards)
 
     return salt
