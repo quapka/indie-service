@@ -37,7 +37,7 @@ def get_salt():
         algorithms=["ES256"],
     )
     salt = derive_salt(decoded)
-    return jsonify({"salt": salt})
+    return jsonify({"salt": salt.hex()})
 
 
 @app.route("/get-salt-e2e", methods=["POST"])
