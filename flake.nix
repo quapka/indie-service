@@ -26,11 +26,27 @@
       {
         packages = rec { };
         devShells.default = mkShell {
+          nativeBuildInputs = [
+            nodejs
+            sage
+          ] ++ (with pkgs.python312Packages; [
+            pytest
+            sage
+            ipython
+          ]);
+
           buildInputs =
-            [ python312 ]
+            [
+              python312
+            ]
             ++ (with pkgs.python312Packages; [
               cryptography
+              # secp256k1
+              fastecdsa
               flake8
+              flask
+              noiseprotocol
+              pyjwt
               mypy
               black
             ]);
