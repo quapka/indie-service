@@ -8,6 +8,8 @@ from noise.connection import NoiseConnection, Keypair
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.hazmat.primitives import serialization
 
+from smartcard.System import readers
+
 
 app = Flask(__name__, instance_relative_config=True)
 app.config.from_pyfile("config.py")
@@ -83,6 +85,28 @@ def get_salt_e2e():
 
     return jsonify({"enc-salt": enc_salt.hex()})
 
+@app.route("/get-salt-jcardsim", methods=["POST"])
+def get_salt_jcardsim():
+    token = request.form.get("jwt")
+
+    r = readers()
+
+    # NOTE this reader-first approach is fragile at best
+    # it assumes that the first reader is the one we want
+    connection = r[0].createConnection()
+    connection.connect()
+    SELECT_APDU =  [0x00, 0xA4, 0x04, 0x00]
+    _, *status = connection.transmit(SELECT_APDU)
+    byte_token = token.encode('ascii')
+    token_byte_length = len(byte_token)
+    DERIVE_SALT_APDU = [0x00, 0x03, 0x00, 0x00] + [int(x) for x in (token_byte_length).to_bytes(3, "big") + byte_token]
+    print(DERIVE_SALT_APDU)
+    data, *status = connection.transmit(DERIVE_SALT_APDU)
+    salt = bytes(data)
+    if status == [0x90, 0x00]:
+        return jsonify({"salt": salt.hex()})
+    else:
+        return jsonify({"error": f"Failed to derive salt in JCardSim. Status word: {status}"}), 500
 
 @app.route("/get-single-card-public", methods=["GET"])
 def get_single_card_public():
