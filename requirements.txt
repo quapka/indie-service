@@ -1,0 +1,5 @@
+requests
+noiseprotocol
+pyjwt
+cryptography
+pyscard==2.0.9
