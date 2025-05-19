@@ -8,6 +8,7 @@ from noise.connection import NoiseConnection, Keypair
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 from cryptography.hazmat.primitives import serialization
 
+import smartcard
 from smartcard.System import readers
 
 
