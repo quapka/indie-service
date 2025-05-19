@@ -108,7 +108,7 @@ def get_salt_jcardsim():
         else:
             return jsonify({"error": f"Failed to derive salt in JCardSim. Status word: {status}"}), 500
     except smartcard.pcsc.PCSCExceptions.EstablishContextException as e:
-        return jsonify({"error": e}), 500
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/get-single-card-public", methods=["GET"])
