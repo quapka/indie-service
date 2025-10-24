@@ -19,3 +19,13 @@ Similarly to `/get-salt`, but the request is end-to-end encrypted using Noise ch
 ## `/get-salt-jcardsim`
 
 Similarly to `/get-salt`, but the salt is derived inside a simulated JavaCard.
+
+## Build Docker container
+
+```bash
+docker build -t indie-service:latest .
+```
+
+```bash
+docker run --rm -it --publish 8080:8080 --entrypoint /bin/bash indie-service:latest
+```
