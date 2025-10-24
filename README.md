@@ -1,8 +1,15 @@
 # Indistinguishability service
 
-After installing the requirements, run with:
+Install the requirements:
 ```bash
-$ flask --app indie_service --port {NUM}
+python -m venv .venv
+source .venv/bin/activate
+pip install --requirement requirements.txt
+```
+
+And start with:
+```bash
+$ flask --app indie_service --port {NUM} run
 ```
 
 This service supports the following endpoint that, upon receiving a valid JWT via POST, returns a salt.
