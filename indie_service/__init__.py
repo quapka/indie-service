@@ -36,7 +36,7 @@ def get_salt():
     decoded = jwt.decode(
         token,
         app.config.get("OP_EC_PUBLIC_KEY"),
-        audience=["zkLogin"],
+        audience=["wallet"],
         algorithms=["ES256"],
     )
     salt = derive_salt(decoded)
@@ -78,7 +78,7 @@ def get_salt_e2e():
     decoded = jwt.decode(
         bytes(token),
         app.config.get("OP_EC_PUBLIC_KEY"),
-        audience=["zkLogin"],
+        audience=["wallet"],
         algorithms=["ES256"],
     )
     salt = derive_salt(decoded)
