@@ -1,5 +1,6 @@
+flask
 requests
 noiseprotocol
 pyjwt
 cryptography
-pyscard==2.0.9
+pyscard==2.0.10
